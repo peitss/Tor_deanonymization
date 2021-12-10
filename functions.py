@@ -7,16 +7,19 @@ from joblib import dump
 
 
 def emptycsv(): #empty csv file
-	with open("./data.csv", 'w') as f:
-		f.write("")
+
+    with open("./data.csv", 'w') as f:
+        f.write("")
 
 
-def csvdata(website, data): #write data inside the file
+def csvdata(domain, data): #write data inside the file
+
     with open("./data.csv", 'a') as f:
-        f.write("{},{}\n".format(website, ','.join(str(num) for num in data)))
+        f.write("{},{}\n".format(domain, ','.join(str(num) for num in data)))
 
 
 def inet_to_str(inet): #convert to string
+
     return socket.inet_ntop(socket.AF_INET, inet)
 
 
@@ -45,27 +48,29 @@ def readpcap(file): #reading the pcap and returning the sizes
 
     pcap = dpkt.pcap.Reader(fp)
 
-   
-    sizes = [0] * 40  #we used the first 40 packets
+    sizes = [0] * 40 #we used the first 40 packets
     i = 0
 
     outgoing_addr = None
     outgoing_packets = 0
     incoming_packets = 0
-    packets_total = 0
+    total_number_of_packets = 0
+
     incoming_size = 0
 
-    for i, j in pcap:
-        packet_size = len(j)
+    for ts, buf in pcap:
+        packet_size = len(buf)
         outgoing = True
-        eth = dpkt.ethernet.Ethernet(j)
+
+        eth = dpkt.ethernet.Ethernet(buf)
 
         # Storing the IP packet
         ip = eth.data
 
         src = inet_to_str(ip.src)
 
-        if packets_total == 0:
+        if total_number_of_packets == 0:
+
             outgoing_addr = src
             outgoing_packets += 1
 
@@ -74,40 +79,41 @@ def readpcap(file): #reading the pcap and returning the sizes
 
         else:
             incoming_packets += 1
+
             incoming_size += packet_size
+
             outgoing = False
 
         if i < 40:
-            # Adding the size to the array.
+            # Adding the size to the list
             sizes[i] = packet_size if outgoing else -packet_size
+
             i += 1
 
-        packets_total += 1
+        total_number_of_packets += 1
 
-  
     ratio = float(incoming_packets) / (outgoing_packets if outgoing_packets != 0 else 1)
-
-
 
     sizes.reverse()
     sizes.append(ratio)
     sizes.append(incoming_packets)
     sizes.append(outgoing_packets)
-    sizes.append(packets_total)
+    sizes.append(total_number_of_packets)
     sizes.append(incoming_size)
-    sizes.reverse() #order by sizes
+
+    #order by sizes
+    sizes.reverse()
+
     return sizes
 
 
 def train(streams, labels): #training the classifier
 
- 
     streams, labels = shuffle(streams, labels)
 
     stream_amount = len(streams)
     training_size = int(stream_amount * 0.9)
 
-  
     training_x = streams[:training_size]
     training_y = labels[:training_size]
 
@@ -118,9 +124,9 @@ def train(streams, labels): #training the classifier
     print(("Testing size:  {}".format(stream_amount - training_size)))
 
     clf = KNeighborsClassifier(n_neighbors=3)
+
     clf = clf.fit(training_x, training_y)
 
-    # Getting the prediction
     predictions = clf.predict(testing_x)
 
     print(("Accuracy: %s%%" % (accuracy_score(testing_y, predictions) * 100,)))
